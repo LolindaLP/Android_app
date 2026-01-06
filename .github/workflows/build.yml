@@ -26,34 +26,34 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y git zip unzip openjdk-11-jdk python3-pip build-essential wget \
-            autoconf automake libtool pkg-config
+            autoconf automake libtool pkg-config zlib1g-dev libncurses5-dev libbz2-dev \
+            liblzma-dev libssl-dev libffi-dev
 
-      # 4️⃣ Устанавливаем Android SDK, Build-tools и исправляем путь
-      - name: Install Android SDK and build-tools
-        run: |
-          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
-          mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
-          
-          # Создаем правильный путь для Buildozer
-          mkdir -p $ANDROID_SDK_ROOT/tools/bin
-          ln -s $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager $ANDROID_SDK_ROOT/tools/bin/sdkmanager
-          
-          # Принимаем лицензии и ставим build-tools
-          yes | $ANDROID_SDK_ROOT/tools/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
-            "platform-tools" "platforms;android-33" "build-tools;34.0.0"
-
-      # 5️⃣ Устанавливаем Python пакеты
+      # 4️⃣ Устанавливаем Python пакеты
       - name: Install Python packages
         run: |
-          pip install --upgrade pip setuptools wheel
+          python -m pip install --upgrade pip setuptools wheel
           pip install buildozer cython
 
-      # 6️⃣ Сборка debug APK
+      # 5️⃣ Установка Android SDK и Build-tools
+      - name: Install Android SDK and build-tools
+        run: |
+          ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
+          mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+          mkdir -p $ANDROID_SDK_ROOT/tools
+          cp -r $ANDROID_SDK_ROOT/cmdline-tools/latest/* $ANDROID_SDK_ROOT/tools/
+          export PATH=$ANDROID_SDK_ROOT/tools/bin:$PATH
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+
+      # 6️⃣ Собираем APK
       - name: Build APK
         run: |
+          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+          export ANDROID_NDK_HOME=$HOME/.buildozer/android/platform/android-ndk-r25b
           buildozer -v android debug
 
       # 7️⃣ Загружаем APK как артефакт
