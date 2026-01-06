@@ -2,6 +2,7 @@
 title = MyApp
 package.name = myapp
 package.domain = org.example
+source.dir = .          # <- здесь указываем корень проекта
 source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
 requirements = python3,kivy==2.2.1,kivymd==1.1.1
