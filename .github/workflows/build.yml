@@ -11,19 +11,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Клонируем репозиторий
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2️⃣ Устанавливаем Python 3.11
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
+      # 3️⃣ Системные зависимости
       - name: Install system dependencies
         run: |
           sudo apt update
           sudo apt install -y git zip unzip openjdk-11-jdk python3-pip build-essential wget
 
+      # 4️⃣ Установка Android SDK и build-tools
       - name: Install Android SDK and build-tools
         run: |
           export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
@@ -34,15 +38,18 @@ jobs:
           yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
             "build-tools;34.0.0" "platform-tools" "platforms;android-33"
 
+      # 5️⃣ Устанавливаем Python пакеты
       - name: Install Python packages
         run: |
           pip install --upgrade pip setuptools wheel
           pip install buildozer cython
 
+      # 6️⃣ Сборка debug APK
       - name: Build APK
         run: |
           buildozer -v android debug
 
+      # 7️⃣ Загружаем APK как артефакт
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
