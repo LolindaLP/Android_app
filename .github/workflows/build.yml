@@ -11,32 +11,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Клонируем репозиторий
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Устанавливаем Python 3.11
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: "3.8"
 
-      # 3️⃣ Устанавливаем Buildozer через готовое Action
-      - name: Build APK with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          # Путь до директории с buildozer.spec, обычно это корень репозитория
-          workdir: .
-          # Можно указать stable или master
-          buildozer_version: stable
-          # Команда сборки, android debug или release
-          command: android debug
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git zip unzip openjdk-8-jdk python3-pip \
+            autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
+            libtinfo5 cmake libffi-dev libssl-dev
 
-      # 4️⃣ Загружаем APK как артефакт
+      - name: Install Buildozer
+        run: |
+          git clone https://github.com/kivy/buildozer.git
+          cd buildozer
+          python3 setup.py install
+          cd ..
+
+      - name: Install Python packages
+        run: |
+          pip install --upgrade Cython==0.29.19 virtualenv
+
+      - name: Build APK
+        run: |
+          yes | buildozer android debug
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MyApp-APK
-          # Buildozer обычно кладет APK в bin/
-          path: ./bin/*.apk
+          path: bin/*.apk
