@@ -15,13 +15,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Настраиваем Java и Python
-      # Buildozer 1.4+ требует OpenJDK 11 для сборки Android.
+      # 2️⃣ Настраиваем Java 11 и Python 3.11
       - name: Set up Java and Python
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '11' # Требуется для современных Android SDK
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -30,11 +29,9 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          # git, zip, unzip, build-essential, wget требуются для Buildozer
           sudo apt install -y git zip unzip build-essential wget 
 
-      # 4️⃣ Кеширование Buildozer (ОЧЕНЬ ВАЖНО для скорости)
-      # Это позволяет сохранить скачанные NDK/SDK/компиляторы между запусками.
+      # 4️⃣ Кеширование Buildozer (Ускорение последующих сборок)
       - name: Cache Buildozer environment
         uses: actions/cache@v4
         with:
@@ -47,19 +44,27 @@ jobs:
       - name: Install Python packages (Buildozer, Cython)
         run: |
           pip install --upgrade pip setuptools wheel
-          # Устанавливаем buildozer
           pip install buildozer cython
 
       # 6️⃣ Сборка debug APK
-      # Впервые Buildozer скачает NDK и SDK (долго),
-      # но благодаря кешу (шаг 4) это произойдет только один раз.
       - name: Build APK
-        # Устанавливаем переменные окружения, которые Buildozer использует для поиска SDK/NDK
+        # Устанавливаем ВСЕ необходимые переменные окружения
         env:
-          # Buildozer сам решит, какие версии API использовать,
-          # но явное указание может помочь.
+          # Buildozer использует эти переменные, чтобы точно знать, что скачивать и где искать
+          ANDROIDSDK: ${{ runner.home }}/.buildozer/android/platform/android-sdk
+          ANDROIDNDK: ${{ runner.home }}/.buildozer/android/platform/android-ndk
+          
+          # Явно указываем версии, которые Buildozer должен использовать/скачать
+          # (Это поможет избежать проблем с поиском build-tools)
           ANDROIDAPI: 33 
           ANDROIDMINAPI: 21
+          # Buildozer часто использует NDK r25b и build-tools 30.0.3,
+          # но вы можете использовать 34.0.0, если он указан в buildozer.spec
+          # Если в spec-файле не указана версия, Buildozer выбирает сам.
+          # Установка здесь может помочь.
+          ANDROIDNDK_HOME: ${{ runner.home }}/.buildozer/android/platform/android-ndk
+          ANDROID_BUILD_TOOLS: 34.0.0
+          
         run: buildozer android debug
 
       # 7️⃣ Загружаем APK как артефакт
@@ -68,5 +73,3 @@ jobs:
         with:
           name: MyApp-APK
           path: bin/*.apk
-          # Опционально: Если вы хотите загрузить только последний APK
-          # retention-days: 7
