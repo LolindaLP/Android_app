@@ -3,15 +3,12 @@ name: Build APKs
 on:
   push:
     tags:
-      - 'v*'  # Запуск на тегах вида v0.3, v1.0
-  workflow_dispatch: # Запуск вручную
+      - 'v*'        # запуск на пуш тегов вида v0.3, v1.0
+  workflow_dispatch: # ручной запуск через GitHub Actions
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    env:
-      PATH: ${{ runner.user }}/.local/bin:${{ env.PATH }}
 
     steps:
       - name: Checkout repository
@@ -39,21 +36,21 @@ jobs:
 
       - name: Build APKs (32-bit & 64-bit)
         run: |
-          # Сборка 32-bit
+          # --- Сборка 32-bit ---
           cp buildozer-32bit.spec buildozer.spec
           yes | buildozer android debug
           mv bin/*.apk bin/mobileapp001-32bit.apk
 
-          # Очистка перед 64-bit сборкой
+          # Очистка перед сборкой 64-bit
           rm -rf .buildozer
           rm -rf bin
 
-          # Сборка 64-bit
+          # --- Сборка 64-bit ---
           cp buildozer-64bit.spec buildozer.spec
           yes | buildozer android debug
           mv bin/*.apk bin/mobileapp001-64bit.apk
 
-          # Список для проверки
+          # Проверка результата
           ls -l bin/
         shell: bash
 
