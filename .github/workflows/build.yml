@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK via Buildozer
 
 on:
   push:
@@ -13,11 +13,16 @@ jobs:
     steps:
       # 1️⃣ Клонируем репозиторий
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2️⃣ Устанавливаем Python 3.11
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      # 2️⃣ Настраиваем Java и Python
+      # Buildozer 1.4+ требует OpenJDK 11 для сборки Android.
+      - name: Set up Java and Python
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -25,39 +30,37 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-11-jdk python3-pip build-essential wget \
-            autoconf automake libtool pkg-config
+          # git, zip, unzip, build-essential, wget требуются для Buildozer
+          sudo apt install -y git zip unzip build-essential wget 
 
-      # 4️⃣ Устанавливаем Android SDK и Build-tools (с правильным SDK_ROOT)
-      - name: Install Android SDK and build-tools
-        run: |
-          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          
-          # Скачиваем командные инструменты
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
-          mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
-          
-          # Принимаем лицензии и устанавливаем необходимые пакеты
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses
-          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
-            "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+      # 4️⃣ Кеширование Buildozer (ОЧЕНЬ ВАЖНО для скорости)
+      # Это позволяет сохранить скачанные NDK/SDK/компиляторы между запусками.
+      - name: Cache Buildozer environment
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            ${{ runner.os }}-buildozer-
 
       # 5️⃣ Устанавливаем Python пакеты
-      - name: Install Python packages
+      - name: Install Python packages (Buildozer, Cython)
         run: |
           pip install --upgrade pip setuptools wheel
+          # Устанавливаем buildozer
           pip install buildozer cython
 
       # 6️⃣ Сборка debug APK
+      # Впервые Buildozer скачает NDK и SDK (долго),
+      # но благодаря кешу (шаг 4) это произойдет только один раз.
       - name: Build APK
-        run: |
-          export ANDROIDSDK=$HOME/.buildozer/android/platform/android-sdk
-          export ANDROIDNDK=$HOME/.buildozer/android/platform/android-ndk-r25b
-          export ANDROIDAPI=33
-          export ANDROIDMINAPI=21
-          buildozer -v android debug
+        # Устанавливаем переменные окружения, которые Buildozer использует для поиска SDK/NDK
+        env:
+          # Buildozer сам решит, какие версии API использовать,
+          # но явное указание может помочь.
+          ANDROIDAPI: 33 
+          ANDROIDMINAPI: 21
+        run: buildozer android debug
 
       # 7️⃣ Загружаем APK как артефакт
       - name: Upload APK
@@ -65,3 +68,5 @@ jobs:
         with:
           name: MyApp-APK
           path: bin/*.apk
+          # Опционально: Если вы хотите загрузить только последний APK
+          # retention-days: 7
