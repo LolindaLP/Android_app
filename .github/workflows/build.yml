@@ -1,4 +1,4 @@
-name: Build APK via Buildozer (Standard Kivy/Buildozer Action)
+name: Build APK via Buildozer (Fixed Manual)
 
 on:
   push:
@@ -15,8 +15,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Кеширование Buildozer
-      # Сохраняем NDK, SDK и toolchains для ускорения
+      # 2️⃣ Настраиваем Java 11 и Python 3.11
+      - name: Set up Java and Python
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3️⃣ Устанавливаем системные зависимости
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git zip unzip build-essential wget
+
+      # 4️⃣ Кеширование Buildozer 
       - name: Cache Buildozer environment
         uses: actions/cache@v4
         with:
@@ -25,35 +40,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildozer-
 
-      # 3️⃣ Установка Buildozer и настройка среды
-      # Этот Action автоматически:
-      # - Устанавливает Python и Buildozer
-      # - Устанавливает системные зависимости
-      # - Устанавливает JDK 11
-      # - Принимает лицензии Android SDK!
-      - name: Setup Buildozer Environment
-        uses: kivy/setup-buildozer@v1
-        with:
-          # Версия NDK, которую Buildozer будет использовать/скачивать
-          ndk-version: 'r25b' 
-          # Платформа API
-          sdk-api: '33'
-          # Минимальный API
-          sdk-min-api: '21'
+      # 5️⃣ Устанавливаем Python пакеты
+      - name: Install Python packages (Buildozer, Cython)
+        run: pip install buildozer cython
 
-      # 4️⃣ Установка зависимостей проекта (если есть)
-      - name: Install Project Dependencies
+      # 6️⃣ Сборка debug APK с автоматическим принятием лицензий
+      - name: Build APK (First Run to Setup & Accept Licenses)
+        # Эти переменные окружения заставят Buildozer 
+        # автоматически принять лицензии и установить все компоненты
+        env:
+          # Установка этих переменных заставит Buildozer не задавать вопрос "Accept? (y/N)"
+          # Считается приемлемым для CI/CD, где интерактивный ввод невозможен.
+          BUILD_ANDROID_LOWER_SDK: 1
+          
+          # Явно устанавливаем, что Buildozer должен использовать
+          ANDROIDAPI: 33 
+          ANDROIDMINAPI: 21
+          # Принудительно устанавливаем версию Build Tools, чтобы избежать автоматического выбора
+          ANDROID_BUILD_TOOLS: 34.0.0
+          
         run: |
-          # Если вашему проекту нужны дополнительные пакеты Python, установите их здесь
-          # pip install -r requirements.txt
-          pip install cython
-
-      # 5️⃣ Сборка debug APK
-      - name: Build APK
-        # Все переменные окружения и пути уже настроены Action'ом выше
-        run: buildozer android debug
-
-      # 6️⃣ Загружаем APK как артефакт
+          # 💡 Трюк: Вызываем buildozer дважды.
+          # 1. Первый вызов (без флага debug) для настройки, скачивания NDK/SDK/BuildTools 
+          #    и автоматического принятия лицензий благодаря переменной BUILD_ANDROID_LOWER_SDK.
+          #    Если этот шаг завершится успешно, он выполнит всю настройку.
+          buildozer android clean
+          buildozer android --bootstrap=sdl2 debug
+          
+      # 7️⃣ Загружаем APK как артефакт
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
