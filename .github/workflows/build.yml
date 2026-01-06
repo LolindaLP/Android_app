@@ -40,7 +40,7 @@ jobs:
     # 5️⃣ Сборка APK (Buildozer сам скачает SDK/NDK)
     - name: Build APK
       run: |
-        yes | buildozer android debug
+        yes | buildozer -v android debug -- --stacktrace --info
 
     # 6️⃣ Артефакт
     - name: Upload APK
