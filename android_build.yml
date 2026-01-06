@@ -1,10 +1,10 @@
-name: Build APK
+name: Build APKs
 
 on:
   push:
     tags:
-      - 'v*'  # workflow запускается на пуш тегов вида v0.3, v1.0
-  workflow_dispatch: # можно запускать вручную
+      - 'v*'  # Запуск на тегах вида v0.3, v1.0
+  workflow_dispatch: # Запуск вручную
 
 jobs:
   build:
@@ -37,30 +37,27 @@ jobs:
           python3 setup.py install
           cd ..
 
-      - name: Build 32-bit APK
+      - name: Build APKs (32-bit & 64-bit)
         run: |
+          # Сборка 32-bit
           cp buildozer-32bit.spec buildozer.spec
           yes | buildozer android debug
-        shell: bash
+          mv bin/*.apk bin/mobileapp001-32bit.apk
 
-      - name: Upload 32-bit APK
-        uses: softprops/action-gh-release@v1
-        with:
-          files: bin/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Очистка перед 64-bit сборкой
+          rm -rf .buildozer
+          rm -rf bin
 
-      - name: Clean build directory
-        run: |
-          rm -rf .buildozer bin
-
-      - name: Build 64-bit APK
-        run: |
+          # Сборка 64-bit
           cp buildozer-64bit.spec buildozer.spec
           yes | buildozer android debug
+          mv bin/*.apk bin/mobileapp001-64bit.apk
+
+          # Список для проверки
+          ls -l bin/
         shell: bash
 
-      - name: Upload 64-bit APK
+      - name: Upload APKs to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: bin/*.apk
