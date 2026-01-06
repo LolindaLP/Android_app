@@ -3,7 +3,7 @@ name: Build APK
 on:
   push:
     tags:
-      - 'v*'  # запускать на тегах вида v0.3, v1.0 и т.д.
+      - 'v*'  # workflow запускается на пуш тегов вида v0.3, v1.0
   workflow_dispatch: # можно запускать вручную
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Set up Python 3.8
         uses: actions/setup-python@v4
         with:
           python-version: 3.8
@@ -43,17 +43,16 @@ jobs:
           yes | buildozer android debug
         shell: bash
 
-      - name: Upload 32-bit APK to GitHub Release
+      - name: Upload 32-bit APK
         uses: softprops/action-gh-release@v1
         with:
           files: bin/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean Buildozer
+      - name: Clean build directory
         run: |
-          rm -rf .buildozer
-          rm -rf bin
+          rm -rf .buildozer bin
 
       - name: Build 64-bit APK
         run: |
@@ -61,7 +60,7 @@ jobs:
           yes | buildozer android debug
         shell: bash
 
-      - name: Upload 64-bit APK to GitHub Release
+      - name: Upload 64-bit APK
         uses: softprops/action-gh-release@v1
         with:
           files: bin/*.apk
