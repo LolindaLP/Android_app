@@ -1,0 +1,69 @@
+name: Build APK
+
+on:
+  push:
+    tags:
+      - 'v*'  # запускать на тегах вида v0.3, v1.0 и т.д.
+  workflow_dispatch: # можно запускать вручную
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      PATH: ${{ runner.user }}/.local/bin:${{ env.PATH }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3-distutils python3-pip git zip unzip \
+            openjdk-8-jdk autoconf libtool pkg-config zlib1g-dev \
+            libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+          pip3 install --upgrade Cython==0.29.19 virtualenv
+
+      - name: Install Buildozer
+        run: |
+          git clone https://github.com/kivy/buildozer.git
+          cd buildozer
+          python3 setup.py install
+          cd ..
+
+      - name: Build 32-bit APK
+        run: |
+          cp buildozer-32bit.spec buildozer.spec
+          yes | buildozer android debug
+        shell: bash
+
+      - name: Upload 32-bit APK to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: bin/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean Buildozer
+        run: |
+          rm -rf .buildozer
+          rm -rf bin
+
+      - name: Build 64-bit APK
+        run: |
+          cp buildozer-64bit.spec buildozer.spec
+          yes | buildozer android debug
+        shell: bash
+
+      - name: Upload 64-bit APK to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: bin/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
